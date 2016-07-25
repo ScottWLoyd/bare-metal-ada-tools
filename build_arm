@@ -1,0 +1,77 @@
+
+#!/bin/bash
+
+# Usage
+# sudo ./build_arm
+
+# Setup vars
+export TARGET=arm-none-eabi
+export PREFIX=/opt/gnuarm
+export PATH=$PATH:$PREFIX/bin
+export JN
+export JN='-j 8'
+
+export GCCVER=6.1.0
+export BINUVER=2.26
+export NEWLIBVER=2.4.0
+
+rm -rf build-*
+rm -rf gcc-$GCCVER
+rm -rf binutils-$BINUVER
+
+# Get archives
+if [ ! -f binutils-$BINUVER.tar.bz2 ] 
+then 
+    wget http://ftpmirror.gnu.org/binutils/binutils-$BINUVER.tar.bz2
+fi
+
+if [ ! -f gcc-$GCCVER.tar.bz2 ] 
+then   
+    wget http://ftpmirror.gnu.org/gcc/gcc-$GCCVER/gcc-$GCCVER.tar.bz2 
+fi
+if [ ! -f newlib-$NEWLIBVER.tar.gz ]
+then
+    wget ftp://sourceware.org/pub/newlib/newlib-$NEWLIBVER.tar.gz
+fi
+
+# Extract archives
+bzip2 -dc binutils-$BINUVER.tar.bz2 | tar -xf -
+bzip2 -dc gcc-$GCCVER.tar.bz2 | tar -xf -
+tar xf newlib-$NEWLIBVER.tar.gz
+
+# Download GCC Prereqs
+cd gcc-$GCCVER
+./contrib/download_prerequisites
+cd ..
+
+# Build binutils
+mkdir build-binutils
+cd build-binutils
+../binutils-$BINUVER/configure --target=$TARGET --prefix=$PREFIX --disable-werror
+echo "MAKEINFO = :" >> Makefile
+make $JN all
+make install
+
+# Build bootstrap GCC
+mkdir ../build-gcc
+cd ../build-gcc
+../gcc-$GCCVER/configure --target=$TARGET --prefix=$PREFIX --without-headers --with-newlib  --with-gnu-as --with-gnu-ld --enable-languages='c,ada,c++' --disable-werror
+make $JN all-gcc
+make install-gcc
+
+# create symlink for newlib's messed up makefile
+ln -s $PREFIX/bin/$TARGET-gcc $PREFIX/bin/$TARGET-cc
+
+# Build newlib
+mkdir ../build-newlib
+cd ../build-newlib
+../newlib-$NEWLIBVER/configure --target=$TARGET --prefix=$PREFIX
+make all
+make install
+
+# Build GCC again with newlib
+cd ../build-gcc
+../gcc-$GCCVER/configure --target=$TARGET --prefix=$PREFIX --with-newlib --with-gnu-as --with-gnu-ld --disable-shared --disable-libssp --disable-libada --enable-languages='c,ada,c++' --disable-werror
+make all
+make install
+
