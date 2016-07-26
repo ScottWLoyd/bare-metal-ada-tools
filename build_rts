@@ -1,0 +1,33 @@
+#!/bin/bash
+
+source ./config.sh
+
+BOARD=rpi
+RTS_DIR=${PREFIX}/lib/gcc/${TARGET}/${GCCVER}
+
+# Setup directories
+mkdir -p ${RTS_DIR}/adalib
+mkdir -p ${RTS_DIR}/adainclude
+
+cd rts
+
+if [ ! -d obj ]
+then
+    mkdir obj
+else
+    rm -rf obj/*
+fi
+
+# Build the library
+gnatmake -Pgnat.gpr -XBoard=${BOARD} -XRTS_Dir=${RTS_DIR}
+
+# Copy the sources
+SPECS="ada.ads a-unccon.ads a-uncdea.ads gnat.ads g-souinf.ads interfac.ads s-stoele.ads s-atacco.ads s-maccod.ads"
+BODIES="s-stoele.adb s-atacco.adb"
+SOURCES="$SPECS $BODIES"
+
+for file in $SOURCES
+do
+    cp src/common/$file ${RTS_DIR}/adainclude
+done
+cp src/boards/${BOARD}/system.ads ${RTS_DIR}/adainclude

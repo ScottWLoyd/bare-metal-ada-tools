@@ -4,16 +4,7 @@
 # Usage
 # sudo ./build_arm
 
-# Setup vars
-export TARGET=arm-none-eabi
-export PREFIX=/opt/gnuarm
-export PATH=$PATH:$PREFIX/bin
-export JN
-export JN='-j 8'
-
-export GCCVER=6.1.0
-export BINUVER=2.26
-export NEWLIBVER=2.4.0
+source ./config.sh
 
 rm -rf build-*
 rm -rf gcc-$GCCVER
@@ -62,6 +53,8 @@ make install-gcc
 # create symlink for newlib's messed up makefile
 ln -s $PREFIX/bin/$TARGET-gcc $PREFIX/bin/$TARGET-cc
 
+# TODO: does this need to be configured to use the gcc we just compiled or 
+# does it just work doing it this way?
 # Build newlib
 mkdir ../build-newlib
 cd ../build-newlib
@@ -69,6 +62,7 @@ cd ../build-newlib
 make all
 make install
 
+# TODO: same as above 
 # Build GCC again with newlib
 cd ../build-gcc
 ../gcc-$GCCVER/configure --target=$TARGET --prefix=$PREFIX --with-newlib --with-gnu-as --with-gnu-ld --disable-shared --disable-libssp --disable-libada --enable-languages='c,ada,c++' --disable-werror

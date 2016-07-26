@@ -1,0 +1,22 @@
+library project gnat is
+   type Board_Name is ("rpi");
+
+   Board : Board_Name := external ("Board", "rpi");
+
+   RTS_Dir := external ("RTS_Dir");
+
+
+   package Builder is
+      for Default_Switches ("Ada") use ("-gnat05", "-a", "-gnatg");
+   end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-O2", "-ffunction-sections", "-fdata-sections");
+   end Compiler;
+
+   for Source_Dirs use ("src/common", "src/boards/" & Board);
+   for Object_Dir use "obj";
+   for Library_Kind use "static";
+   for Library_Name use "gnat";
+   for Library_Dir use RTS_Dir & "/adalib";
+end gnat;
