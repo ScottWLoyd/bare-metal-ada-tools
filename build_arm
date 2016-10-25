@@ -1,71 +1,74 @@
 
-#!/bin/bash
+export BINVER=2.27
+export GCCVER=6.2.0
+export NEWLIBVER=2.4.0
 
-# Usage
-# sudo ./build_arm
+export TARGET=arm-none-eabi
+export PREFIX=${HOME}/dev/tools/cross 
 
-source ./config.sh
+
 
 rm -rf build-*
-rm -rf gcc-$GCCVER
-rm -rf binutils-$BINUVER
+rm -rf gcc-${GCCVER}
+rm -rf binutils-${BINUVER}
 
 # Get archives
-if [ ! -f binutils-$BINUVER.tar.bz2 ] 
+if [ ! -f binutils-${BINUVER}.tar.bz2 ] 
 then 
-    wget http://ftpmirror.gnu.org/binutils/binutils-$BINUVER.tar.bz2
+    wget http://ftpmirror.gnu.org/binutils/binutils-${BINUVER}.tar.bz2
 fi
 
-if [ ! -f gcc-$GCCVER.tar.bz2 ] 
+if [ ! -f gcc-${GCCVER}.tar.bz2 ] 
 then   
-    wget http://ftpmirror.gnu.org/gcc/gcc-$GCCVER/gcc-$GCCVER.tar.bz2 
+    wget http://ftpmirror.gnu.org/gcc/gcc-${GCCVER}/gcc-${GCCVER}.tar.bz2 
 fi
-if [ ! -f newlib-$NEWLIBVER.tar.gz ]
+if [ ! -f newlib-${NEWLIBVER}.tar.gz ]
 then
-    wget ftp://sourceware.org/pub/newlib/newlib-$NEWLIBVER.tar.gz
+    wget ftp://sourceware.org/pub/newlib/newlib-${NEWLIBVER}.tar.gz
 fi
 
 # Extract archives
-bzip2 -dc binutils-$BINUVER.tar.bz2 | tar -xf -
-bzip2 -dc gcc-$GCCVER.tar.bz2 | tar -xf -
-tar xf newlib-$NEWLIBVER.tar.gz
+bzip2 -dc binutils-${BINUVER}.tar.bz2 | tar -xf -
+bzip2 -dc gcc-${GCCVER}.tar.bz2 | tar -xf -
+tar xf newlib-${NEWLIBVER}.tar.gz
 
 # Download GCC Prereqs
-cd gcc-$GCCVER
+cd gcc-${GCCVER}
 ./contrib/download_prerequisites
 cd ..
+    
 
-# Build binutils
-mkdir build-binutils
-cd build-binutils
-../binutils-$BINUVER/configure --target=$TARGET --prefix=$PREFIX --disable-werror
-echo "MAKEINFO = :" >> Makefile
-make $JN all
+
+../binutils-${BINVER}/configure --target=${TARGET} --prefix=${PREFIX} --disable-nls
+make
 make install
+rm -Rf *
 
-# Build bootstrap GCC
-mkdir ../build-gcc
-cd ../build-gcc
-../gcc-$GCCVER/configure --target=$TARGET --prefix=$PREFIX --without-headers --with-newlib  --with-gnu-as --with-gnu-ld --enable-languages='c,ada,c++' --disable-werror
-make $JN all-gcc
-make install-gcc
+export PATH=$PREFIX/bin:$PATH
+which -- $TARGET-as || echo $TARGET-as is not in the PATH
 
-# create symlink for newlib's messed up makefile
-ln -s $PREFIX/bin/$TARGET-gcc $PREFIX/bin/$TARGET-cc
 
-# TODO: does this need to be configured to use the gcc we just compiled or 
-# does it just work doing it this way?
-# Build newlib
-mkdir ../build-newlib
-cd ../build-newlib
-../newlib-$NEWLIBVER/configure --target=$TARGET --prefix=$PREFIX
+cd ..
+mkdir build-gcc
+cd build-gcc
+../gcc-${GCCVER}/configure --target=${TARGET} --prefix=${PREFIX} --disable-nls --without-headers --with-newlib --with-gnu-as --with-gnu-ld --enable-languages=c,c++,ada 
+make -j4 all-gcc
+make install
+rm -Rf *
+
+
+cd ..
+mkdir build-newlib
+cd build-newlib
+# make a link to fix Newlib's broken makefile
+ln -s ${PREFIX}/bin/${TARGET}-gcc ${PREFIX}/bin/${TARGET}-cc
+../newlib-${NEWLIBVER}/configure --target=${TARGET} --prefix=${PREFIX} CFLAGS=' -g -O2 -D_LDBL_EQ_DBL'
+make all
+env "PATH=${PATH}" make install && echo "Success!"
+rm -Rf *
+
+cd ..
+cd build-gcc/
+../gcc-${GCCVER}/configure --target=${TARGET} --prefix=${PREFIX} --with-newlib --with-gnu-as --with-gnu-ld --disable-shared --disable-libssp --enable-languages=c,c++,ada
 make all
 make install
-
-# TODO: same as above 
-# Build GCC again with newlib
-cd ../build-gcc
-../gcc-$GCCVER/configure --target=$TARGET --prefix=$PREFIX --with-newlib --with-gnu-as --with-gnu-ld --disable-shared --disable-libssp --disable-libada --enable-languages='c,ada,c++' --disable-werror
-make all
-make install
-
